@@ -9,7 +9,7 @@ output "website_bucket_arn" {
   value       = aws_s3_bucket.website.arn
 }
 
-cloudfront outputs
+#cloudfront outputs
 output "cloudfront_distribution_id" {
   description = "ID of the CloudFront distribution."
   value       = aws_cloudfront_distribution.website.id
