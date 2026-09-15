@@ -22,24 +22,19 @@ No persistent storage is used for submitted images.
 
 ```mermaid
 flowchart LR
-    CLIENT[Existing Applications]
+    CLIENT["Existing Applications"]
+    APIGW["Amazon API Gateway - POST /friendly"]
+    LAMBDA["AWS Lambda - Python"]
+    REK["Amazon Rekognition - DetectFaces"]
+    CW["Amazon CloudWatch Logs"]
 
-    APIGW[Amazon API Gateway<br/>POST /friendly]
-
-    LAMBDA[AWS Lambda<br/>Python]
-
-    REK[Amazon Rekognition<br/>DetectFaces]
-
-    CW[Amazon CloudWatch Logs]
-
-    CLIENT -->|HTTPS POST<br/>Base64 Image| APIGW
-    APIGW -->|Invoke| LAMBDA
-    LAMBDA -->|DetectFaces| REK
-    REK -->|Facial Attributes| LAMBDA
-    LAMBDA -->|Classification Response| APIGW
-    APIGW -->|HTTPS Response| CLIENT
-
-    LAMBDA -->|Logs| CW
+    CLIENT -->|"HTTPS POST - Base64 Image"| APIGW
+    APIGW -->|"Invoke"| LAMBDA
+    LAMBDA -->|"DetectFaces"| REK
+    REK -->|"Facial Attributes"| LAMBDA
+    LAMBDA -->|"Classification Response"| APIGW
+    APIGW -->|"HTTPS Response"| CLIENT
+    LAMBDA -->|"Logs"| CW
 ```
 
 ---
@@ -53,7 +48,7 @@ sequenceDiagram
     participant Lambda as Lambda
     participant Rekognition as Amazon Rekognition
 
-    Client->>API: POST /friendly<br/>Base64 image
+    Client->>API: POST /friendly
     API->>Lambda: Invoke function
     Lambda->>Lambda: Validate request
     Lambda->>Lambda: Decode image
@@ -72,20 +67,31 @@ The Lambda function applies the business rules after receiving the Rekognition r
 
 ```mermaid
 flowchart TD
-    START[Receive Image] --> VALIDATE[Validate Request]
-    VALIDATE --> DECODE[Decode Base64 Image]
-    DECODE --> DETECT[Rekognition DetectFaces]
+    START["Receive Image"]
+    VALIDATE["Validate Request"]
+    DECODE["Decode Base64 Image"]
+    DETECT["Rekognition DetectFaces"]
+    FACES{"Exactly One Face?"}
+    BAD1["Bad Profile Photo"]
+    SMILE{"Smiling?"}
+    BAD2["Bad Profile Photo"]
+    EYES{"Eyes Open?"}
+    BAD3["Bad Profile Photo"]
+    GOOD["Good Profile Photo"]
 
-    DETECT --> FACES{Exactly One Face?}
+    START --> VALIDATE
+    VALIDATE --> DECODE
+    DECODE --> DETECT
+    DETECT --> FACES
 
-    FACES -->|No| BAD1[Bad Profile Photo]
-    FACES -->|Yes| SMILE{Smiling?}
+    FACES -->|"No"| BAD1
+    FACES -->|"Yes"| SMILE
 
-    SMILE -->|No| BAD2[Bad Profile Photo]
-    SMILE -->|Yes| EYES{Eyes Open?}
+    SMILE -->|"No"| BAD2
+    SMILE -->|"Yes"| EYES
 
-    EYES -->|No| BAD3[Bad Profile Photo]
-    EYES -->|Yes| GOOD[Good Profile Photo]
+    EYES -->|"No"| BAD3
+    EYES -->|"Yes"| GOOD
 ```
 
 ---
@@ -95,32 +101,32 @@ flowchart TD
 ```mermaid
 flowchart TD
     subgraph Requirements
-        R1[Analyze Profile Photos]
-        R2[Integrate With Applications]
-        R3[Support PNG and JPEG]
-        R4[High Availability]
-        R5[Low Cost]
-        R6[Scalability]
-        R7[No Image Persistence]
-        R8[Infrastructure as Code]
+        R1["Analyze Profile Photos"]
+        R2["Integrate With Applications"]
+        R3["Support PNG and JPEG"]
+        R4["High Availability"]
+        R5["Low Cost"]
+        R6["Scalability"]
+        R7["No Image Persistence"]
+        R8["Infrastructure as Code"]
     end
 
     subgraph Capabilities
-        C1[ML Image Analysis]
-        C2[HTTPS API]
-        C3[Image Validation]
-        C4[Serverless Execution]
-        C5[Managed Scaling]
-        C6[In-Memory Processing]
-        C7[Infrastructure Automation]
+        C1["ML Image Analysis"]
+        C2["HTTPS API"]
+        C3["Image Validation"]
+        C4["Serverless Execution"]
+        C5["Managed Scaling"]
+        C6["In-Memory Processing"]
+        C7["Infrastructure Automation"]
     end
 
-    subgraph AWS_Services
-        S1[Amazon Rekognition]
-        S2[Amazon API Gateway]
-        S3[AWS Lambda]
-        S4[Terraform]
-        S5[CloudWatch Logs]
+    subgraph AWSServices["AWS Services"]
+        S1["Amazon Rekognition"]
+        S2["Amazon API Gateway"]
+        S3["AWS Lambda"]
+        S4["Terraform"]
+        S5["CloudWatch Logs"]
     end
 
     R1 --> C1
@@ -223,22 +229,22 @@ This provides visibility into:
 
 ```mermaid
 flowchart LR
-    CLIENT[Consuming Application]
-    HTTPS[HTTPS]
-    API[API Gateway]
-    ROLE[Lambda Execution Role]
-    LAMBDA[Lambda]
-    REK[Amazon Rekognition]
-    LOGS[CloudWatch Logs]
+    CLIENT["Consuming Application"]
+    HTTPS["HTTPS"]
+    API["API Gateway"]
+    ROLE["Lambda Execution Role"]
+    LAMBDA["Lambda"]
+    REK["Amazon Rekognition"]
+    LOGS["CloudWatch Logs"]
 
     CLIENT --> HTTPS
     HTTPS --> API
     API --> LAMBDA
 
-    ROLE -.->|Least-Privilege Permissions| LAMBDA
+    ROLE -.->|"Least-Privilege Permissions"| LAMBDA
 
-    LAMBDA -->|DetectFaces| REK
-    LAMBDA -->|Execution Logs| LOGS
+    LAMBDA -->|"DetectFaces"| REK
+    LAMBDA -->|"Execution Logs"| LOGS
 ```
 
 Security principles:
@@ -256,14 +262,14 @@ Security principles:
 
 ```mermaid
 flowchart LR
-    IMAGE[Image File]
-    BASE64[Base64 Encoding]
-    REQUEST[HTTPS Request]
-    API[API Gateway]
-    MEMORY[Lambda Memory]
-    REK[Amazon Rekognition]
-    RESULT[Classification]
-    RESPONSE[HTTPS Response]
+    IMAGE["Image File"]
+    BASE64["Base64 Encoding"]
+    REQUEST["HTTPS Request"]
+    API["API Gateway"]
+    MEMORY["Lambda Memory"]
+    REK["Amazon Rekognition"]
+    RESULT["Classification"]
+    RESPONSE["HTTPS Response"]
 
     IMAGE --> BASE64
     BASE64 --> REQUEST
@@ -285,17 +291,17 @@ Terraform provisions the infrastructure required by the application.
 
 ```mermaid
 flowchart TD
-    V[versions.tf]
-    B[backend.tf]
-    VAR[variables.tf]
-    M[main.tf]
+    V["versions.tf"]
+    B["backend.tf"]
+    VAR["variables.tf"]
+    M["main.tf"]
 
-    IAM[iam.tf]
-    LAMBDA[lambda.tf]
-    API[apigateway.tf]
-    OUT[outputs.tf]
+    IAM["iam.tf"]
+    LAMBDA["lambda.tf"]
+    API["apigateway.tf"]
+    OUT["outputs.tf"]
 
-    V --> CONFIG[Terraform Configuration]
+    V --> CONFIG["Terraform Configuration"]
     B --> CONFIG
     VAR --> CONFIG
     M --> CONFIG
@@ -318,12 +324,12 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    IAM[Lambda IAM Role]
-    LAMBDA[Lambda Function]
-    API[API Gateway]
-    PERMISSION[Lambda Invoke Permission]
-    DEPLOY[API Deployment]
-    OUTPUTS[Terraform Outputs]
+    IAM["Lambda IAM Role"]
+    LAMBDA["Lambda Function"]
+    API["API Gateway"]
+    PERMISSION["Lambda Invoke Permission"]
+    DEPLOY["API Deployment"]
+    OUTPUTS["Terraform Outputs"]
 
     IAM --> LAMBDA
     LAMBDA --> PERMISSION
@@ -341,12 +347,12 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    ROOT[API Gateway Root]
-    FRIENDLY[/friendly]
-    POST[POST Method]
-    INTEGRATION[Lambda Integration]
-    FUNCTION[Image Analyzer Lambda]
-    RESPONSE[API Response]
+    ROOT["API Gateway Root"]
+    FRIENDLY["/friendly Resource"]
+    POST["POST Method"]
+    INTEGRATION["Lambda Integration"]
+    FUNCTION["Image Analyzer Lambda"]
+    RESPONSE["API Response"]
 
     ROOT --> FRIENDLY
     FRIENDLY --> POST
@@ -358,19 +364,25 @@ flowchart TD
 
 The initial API uses a regional API Gateway endpoint.
 
+The initial endpoint is:
+
+```text
+POST /friendly
+```
+
 ---
 
 ## 12. Deployment Flow
 
 ```mermaid
 flowchart LR
-    DEV[Developer]
-    CODE[Python + Terraform]
-    VALIDATE[Terraform Validate]
-    PLAN[Terraform Plan]
-    APPLY[Terraform Apply]
-    AWS[AWS Infrastructure]
-    TEST[API Testing]
+    DEV["Developer"]
+    CODE["Python and Terraform"]
+    VALIDATE["Terraform Validate"]
+    PLAN["Terraform Plan"]
+    APPLY["Terraform Apply"]
+    AWS["AWS Infrastructure"]
+    TEST["API Testing"]
 
     DEV --> CODE
     CODE --> VALIDATE
@@ -386,17 +398,17 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    PYTHON[Python Client]
-    IMAGE[PNG / JPEG]
-    ENCODE[Base64 Encoding]
-    API[API Gateway]
-    LAMBDA[Lambda]
-    REK[Rekognition]
-    RESULT[Test Result]
+    PYTHON["Python Client"]
+    IMAGE["PNG or JPEG"]
+    ENCODE["Base64 Encoding"]
+    API["API Gateway"]
+    LAMBDA["Lambda"]
+    REK["Amazon Rekognition"]
+    RESULT["Test Result"]
 
     IMAGE --> ENCODE
     ENCODE --> PYTHON
-    PYTHON -->|POST /friendly| API
+    PYTHON -->|"POST /friendly"| API
     API --> LAMBDA
     LAMBDA --> REK
     REK --> LAMBDA
@@ -468,24 +480,28 @@ API Gateway and Lambda provide an abstraction layer that:
 
 ```mermaid
 flowchart LR
-    CURRENT[Current Version]
+    CURRENT["Current Version"]
 
-    CLIENT1[Applications]
-    API1[API Gateway]
-    LAMBDA1[Lambda]
-    REK1[Rekognition]
+    CLIENT1["Applications"]
+    API1["API Gateway"]
+    LAMBDA1["Lambda"]
+    REK1["Amazon Rekognition"]
 
-    CLIENT1 --> API1 --> LAMBDA1 --> REK1
-    REK1 --> LAMBDA1 --> API1 --> CLIENT1
+    CLIENT1 --> API1
+    API1 --> LAMBDA1
+    LAMBDA1 --> REK1
+    REK1 --> LAMBDA1
+    LAMBDA1 --> API1
+    API1 --> CLIENT1
 
-    FUTURE[Future Enhancements]
+    FUTURE["Future Enhancements"]
 
-    AUTH[Cognito / IAM]
-    WAF[WAF]
-    MOD[Content Moderation]
-    ASYNC[Async Processing]
-    CUSTOM[Custom ML / SageMaker]
-    DOMAIN[Custom Domain + ACM]
+    AUTH["Cognito or IAM"]
+    WAF["AWS WAF"]
+    MOD["Content Moderation"]
+    ASYNC["Async Processing"]
+    CUSTOM["Custom ML or SageMaker"]
+    DOMAIN["Custom Domain and ACM"]
 
     API1 -.-> AUTH
     API1 -.-> WAF
@@ -499,7 +515,7 @@ flowchart LR
 
 ## 17. Future Work
 
-The following enhancements are intentionally outside the initial implementation:
+The following enhancements are intentionally outside the initial implementation.
 
 ### Authentication and Authorization
 
