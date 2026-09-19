@@ -18,25 +18,25 @@ The architecture separates infrastructure management from content delivery so th
 
 ```mermaid
 flowchart TB
-    User[User]
+    User["User"]
 
     subgraph Delivery["Content Delivery"]
-        CF[Amazon CloudFront]
-        Edge[Lambda@Edge]
-        EN[(English Content)]
-        ES[(Spanish Content)]
+        CF["Amazon CloudFront"]
+        Edge["Lambda@Edge"]
+        EN[("English Content")]
+        ES[("Spanish Content")]
     end
 
     subgraph ContentPipeline["Content Delivery Pipeline"]
-        GitHub[GitHub]
-        Pipeline[AWS CodePipeline]
-        Build[AWS CodeBuild]
-        Translate[Amazon Translate]
+        GitHub["GitHub"]
+        Pipeline["AWS CodePipeline"]
+        Build["AWS CodeBuild"]
+        Translate["Amazon Translate"]
     end
 
     subgraph Infrastructure["Infrastructure Management"]
-        Terraform[Terraform]
-        InfraPipeline[Infrastructure Pipeline]
+        Terraform["Terraform"]
+        InfraPipeline["Infrastructure Pipeline"]
     end
 
     User --> CF
@@ -149,13 +149,13 @@ The content delivery workflow starts when a change is committed to the source re
 
 ```mermaid
 flowchart LR
-    Developer[Content Change]
-    GitHub[GitHub]
-    Pipeline[CodePipeline]
-    Build[CodeBuild]
-    Translate[Amazon Translate]
-    EN[(English Content)]
-    ES[(Spanish Content)]
+    Developer["Content Change"]
+    GitHub["GitHub"]
+    Pipeline["CodePipeline"]
+    Build["CodeBuild"]
+    Translate["Amazon Translate"]
+    EN[("English Content")]
+    ES[("Spanish Content")]
 
     Developer --> GitHub
     GitHub --> Pipeline
@@ -177,11 +177,11 @@ The user request follows a separate runtime path from the content publishing wor
 
 ```mermaid
 flowchart LR
-    User[User]
-    CF[Amazon CloudFront]
-    Edge[Lambda@Edge]
-    EN[(English Content)]
-    ES[(Spanish Content)]
+    User["User"]
+    CF["Amazon CloudFront"]
+    Edge["Lambda@Edge"]
+    EN[("English Content")]
+    ES[("Spanish Content")]
 
     User --> CF
     CF --> Edge
@@ -202,11 +202,11 @@ Infrastructure changes follow a separate lifecycle from content changes.
 
 ```mermaid
 flowchart LR
-    Developer[Infrastructure Change]
-    GitHub[GitHub]
-    Pipeline[Infrastructure Pipeline]
-    Terraform[Terraform]
-    AWS[AWS Infrastructure]
+    Developer["Infrastructure Change"]
+    GitHub["GitHub"]
+    Pipeline["Infrastructure Pipeline"]
+    Terraform["Terraform"]
+    AWS["AWS Infrastructure"]
 
     Developer --> GitHub
     GitHub --> Pipeline
@@ -362,4 +362,3 @@ The architecture can be extended to support:
 * Additional content types
 
 These extensions are outside the initial implementation scope.
-
