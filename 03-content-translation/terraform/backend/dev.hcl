@@ -1,0 +1,1 @@
+key = "03-content-translation/dev/terraform.tfstate"
