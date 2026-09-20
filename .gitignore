@@ -6,6 +6,8 @@
 **/crash.log
 **/crash.*.log
 **/*.tfvars
+!03-content-translation/terraform/environments/
+!03-content-translation/terraform/environments/*.tfvars
 **/*.tfvars.json
 
 # Lambda build artifacts
