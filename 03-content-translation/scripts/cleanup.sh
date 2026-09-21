@@ -60,15 +60,19 @@ empty_bucket() {
         --bucket "$bucket" \
         --region "$BACKEND_REGION" >/dev/null 2>&1; then
         echo "Bucket does not exist: $bucket"
-        return
+        return 0
     fi
+
+    echo "Emptying bucket: $bucket"
 
     while true; do
         local objects
-        objects="$(aws s3api list-object-versions \
-            --bucket "$bucket" \
-            --region "$BACKEND_REGION" \
-            --output json)"
+        objects="$(
+            aws s3api list-object-versions \
+                --bucket "$bucket" \
+                --region "$BACKEND_REGION" \
+                --output json
+        )"
 
         local count
         count="$(jq '[.Versions[]?, .DeleteMarkers[]?] | length' <<< "$objects")"
@@ -101,14 +105,94 @@ empty_bucket() {
             --region "$BACKEND_REGION" \
             --delete file:///tmp/s3-delete-objects.json >/dev/null
     done
+
+    echo "Bucket is empty: $bucket"
+}
+
+is_backend_empty() {
+    if ! aws s3api head-bucket \
+        --bucket "$BACKEND_BUCKET" \
+        --region "$BACKEND_REGION" >/dev/null 2>&1; then
+        return 0
+    fi
+
+    local objects
+    objects="$(
+        aws s3api list-object-versions \
+            --bucket "$BACKEND_BUCKET" \
+            --region "$BACKEND_REGION" \
+            --output json
+    )"
+
+    local count
+    count="$(jq '[.Versions[]?, .DeleteMarkers[]?] | length' <<< "$objects")"
+
+    [[ "$count" -eq 0 ]]
+}
+
+delete_backend() {
+    if ! aws s3api head-bucket \
+        --bucket "$BACKEND_BUCKET" \
+        --region "$BACKEND_REGION" >/dev/null 2>&1; then
+        echo "Shared Terraform backend does not exist."
+        return 0
+    fi
+
+    echo
+    echo "Emptying shared Terraform backend..."
+
+    empty_bucket "$BACKEND_BUCKET"
+
+    if ! is_backend_empty; then
+        echo "Shared Terraform backend is not empty."
+        echo "Backend bucket will not be deleted."
+        exit 1
+    fi
+
+    echo
+    echo "Deleting shared Terraform backend..."
+
+    aws s3api delete-bucket \
+        --bucket "$BACKEND_BUCKET" \
+        --region "$BACKEND_REGION"
+
+    echo "Shared Terraform backend deleted."
+}
+
+environment_has_resources() {
+    local environment="$1"
+    local backend_env="$TERRAFORM_DIR/backend/$environment.hcl"
+    local tfvars="$TERRAFORM_DIR/environments/$environment.tfvars"
+
+    if [[ ! -f "$backend_env" || ! -f "$tfvars" ]]; then
+        return 1
+    fi
+
+    cd "$TERRAFORM_DIR"
+
+    terraform init \
+        -reconfigure \
+        -backend-config="$BACKEND_SHARED" \
+        -backend-config="$backend_env" >/dev/null
+
+    local state
+    state="$(terraform state list 2>/dev/null || true)"
+
+    [[ -n "$state" ]]
 }
 
 destroy_environment() {
     local environment="$1"
     local backend_env="$TERRAFORM_DIR/backend/$environment.hcl"
+    local tfvars="$TERRAFORM_DIR/environments/$environment.tfvars"
 
     if [[ ! -f "$backend_env" ]]; then
-        echo "Missing configuration for environment: $environment"
+        echo "Missing backend configuration for environment: $environment"
+        exit 1
+    fi
+
+    if [[ ! -f "$tfvars" ]]; then
+        echo "Missing variables file for environment: $environment"
         exit 1
     fi
 
@@ -122,16 +206,51 @@ destroy_environment() {
         -backend-config="$BACKEND_SHARED" \
         -backend-config="$backend_env"
 
-    terraform destroy
+    terraform destroy \
+        -var-file="$tfvars"
+}
+
+cleanup_single_environment() {
+    local environment="$1"
+    local other_environment
+
+    if [[ "$environment" == "dev" ]]; then
+        other_environment="prod"
+    else
+        other_environment="dev"
+    fi
+
+    destroy_environment "$environment"
+
+    echo
+    echo "Checking remaining environment: $other_environment"
+
+    if environment_has_resources "$other_environment"; then
+        echo "Environment '$other_environment' still has Terraform resources."
+        echo "Shared Terraform backend will be kept."
+    else
+        echo "Environment '$other_environment' has no Terraform resources."
+        echo "No environment requires the shared Terraform backend."
+
+        delete_backend
+    fi
 }
 
 echo
+
 if [[ "$TARGET" == "all" ]]; then
     echo "This will destroy dev and prod resources."
     echo "The shared Terraform backend will also be deleted."
 else
     echo "This will destroy all $TARGET resources."
-    echo "The shared Terraform backend will be kept."
+
+    if [[ "$TARGET" == "dev" ]]; then
+        echo "After cleanup, prod will be checked."
+    else
+        echo "After cleanup, dev will be checked."
+    fi
+
+    echo "The shared Terraform backend will be deleted only if no other environment has resources."
 fi
 
 echo
@@ -151,22 +270,9 @@ esac
 if [[ "$TARGET" == "all" ]]; then
     destroy_environment "dev"
     destroy_environment "prod"
-
-    echo
-    echo "Emptying shared Terraform backend..."
-
-    empty_bucket "$BACKEND_BUCKET"
-
-    echo
-    echo "Deleting shared Terraform backend..."
-
-    aws s3api delete-bucket \
-        --bucket "$BACKEND_BUCKET" \
-        --region "$BACKEND_REGION"
-
-    echo "Shared Terraform backend deleted."
+    delete_backend
 else
-    destroy_environment "$TARGET"
+    cleanup_single_environment "$TARGET"
 fi
 
 echo
