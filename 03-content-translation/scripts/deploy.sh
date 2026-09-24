@@ -91,8 +91,9 @@ echo "Plan file:   $PLAN_FILE"
 if [[ -f "$PLAN_FILE" ]]; then
     echo
     echo "Existing plan found."
-    echo "The existing plan will be used."
+    echo "A saved plan is a snapshot and may be outdated."
     echo
+
     read -r -p "Use this plan? [y/N] " confirmation
 
     case "$confirmation" in
@@ -100,8 +101,16 @@ if [[ -f "$PLAN_FILE" ]]; then
             echo "Using existing plan."
             ;;
         *)
-            echo "Deployment cancelled."
-            exit 0
+            echo
+            echo "Discarding existing plan..."
+            rm -f "$PLAN_FILE"
+
+            echo
+            echo "=== Terraform Plan ==="
+
+            terraform plan \
+                -var-file="$TFVARS" \
+                -out="$PLAN_FILE"
             ;;
     esac
 else
