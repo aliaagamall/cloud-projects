@@ -51,3 +51,38 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "content" {
     }
   }
 }
+
+
+resource "aws_s3_bucket_policy" "content" {
+  for_each = aws_s3_bucket.content
+
+  bucket = each.value.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Sid    = "AllowCloudFrontServicePrincipalReadOnly"
+        Effect = "Allow"
+
+        Principal = {
+          Service = "cloudfront.amazonaws.com"
+        }
+
+        Action = [
+          "s3:GetObject"
+        ]
+
+        Resource = "${each.value.arn}/*"
+
+        Condition = {
+          StringEquals = {
+            "AWS:SourceArn" = aws_cloudfront_distribution.content.arn
+          }
+        }
+      }
+    ]
+  })
+}
+

@@ -18,3 +18,14 @@ variable "project_name" {
   type        = string
   default     = "content-translation"
 }
+
+variable "default_language" {
+  description = "Default content language served by CloudFront."
+  type        = string
+  default     = "en"
+
+  validation {
+    condition     = contains(["en", "es"], var.default_language)
+    error_message = "Default language must be either en or es."
+  }
+}
