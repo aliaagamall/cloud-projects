@@ -29,3 +29,9 @@ variable "default_language" {
     error_message = "Default language must be either en or es."
   }
 }
+
+variable "enable_language_routing" {
+  description = "Whether to associate the Lambda@Edge language routing function with CloudFront."
+  type        = bool
+  default     = true
+}

@@ -53,24 +53,20 @@ resource "aws_cloudfront_distribution" "content" {
     target_origin_id       = "s3-${var.default_language}"
     viewer_protocol_policy = "redirect-to-https"
 
-    allowed_methods = [
-      "GET",
-      "HEAD",
-    ]
-
-    cached_methods = [
-      "GET",
-      "HEAD",
-    ]
+    allowed_methods = ["GET", "HEAD"]
+    cached_methods  = ["GET", "HEAD"]
 
     cache_policy_id = aws_cloudfront_cache_policy.content.id
+    compress        = true
 
-    compress = true
+    dynamic "lambda_function_association" {
+      for_each = var.enable_language_routing ? [1] : []
 
-    lambda_function_association {
-      event_type   = "origin-request"
-      lambda_arn   = aws_lambda_function.language_routing.qualified_arn
-      include_body = false
+      content {
+        event_type   = "origin-request"
+        lambda_arn   = aws_lambda_function.language_routing.qualified_arn
+        include_body = false
+      }
     }
   }
 
