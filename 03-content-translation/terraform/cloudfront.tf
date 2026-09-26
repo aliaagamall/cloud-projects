@@ -1,11 +1,3 @@
-resource "aws_cloudfront_origin_access_control" "content" {
-  name                              = "${var.project_name}-${var.environment}-oac"
-  description                       = "Origin Access Control for ${var.project_name}-${var.environment}"
-  origin_access_control_origin_type = "s3"
-  signing_behavior                  = "always"
-  signing_protocol                  = "sigv4"
-}
-
 resource "aws_cloudfront_cache_policy" "content" {
   name        = "${var.project_name}-${var.environment}-content"
   comment     = "Cache policy for ${var.project_name}-${var.environment} content"
@@ -48,9 +40,12 @@ resource "aws_cloudfront_distribution" "content" {
     for_each = aws_s3_bucket.content
 
     content {
-      domain_name              = origin.value.bucket_regional_domain_name
-      origin_id                = "s3-${origin.key}"
-      origin_access_control_id = aws_cloudfront_origin_access_control.content.id
+      domain_name = origin.value.bucket_regional_domain_name
+      origin_id   = "s3-${origin.key}"
+
+      s3_origin_config {
+        origin_access_identity = aws_cloudfront_origin_access_identity.content.cloudfront_access_identity_path
+      }
     }
   }
 
@@ -71,6 +66,12 @@ resource "aws_cloudfront_distribution" "content" {
     cache_policy_id = aws_cloudfront_cache_policy.content.id
 
     compress = true
+
+    lambda_function_association {
+      event_type   = "origin-request"
+      lambda_arn   = aws_lambda_function.language_routing.qualified_arn
+      include_body = false
+    }
   }
 
   restrictions {
@@ -81,7 +82,7 @@ resource "aws_cloudfront_distribution" "content" {
 
   viewer_certificate {
     cloudfront_default_certificate = true
-    minimum_protocol_version       = "TLSv1"
+    minimum_protocol_version       = "TLSv1.2_2021"
   }
 
   is_ipv6_enabled = true

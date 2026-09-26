@@ -52,6 +52,9 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "content" {
   }
 }
 
+resource "aws_cloudfront_origin_access_identity" "content" {
+  comment = "${var.project_name}-${var.environment}-s3-access"
+}
 
 resource "aws_s3_bucket_policy" "content" {
   for_each = aws_s3_bucket.content
@@ -63,11 +66,11 @@ resource "aws_s3_bucket_policy" "content" {
 
     Statement = [
       {
-        Sid    = "AllowCloudFrontServicePrincipalReadOnly"
+        Sid    = "AllowCloudFrontOAIReadOnly"
         Effect = "Allow"
 
         Principal = {
-          Service = "cloudfront.amazonaws.com"
+          AWS = aws_cloudfront_origin_access_identity.content.iam_arn
         }
 
         Action = [
@@ -75,14 +78,7 @@ resource "aws_s3_bucket_policy" "content" {
         ]
 
         Resource = "${each.value.arn}/*"
-
-        Condition = {
-          StringEquals = {
-            "AWS:SourceArn" = aws_cloudfront_distribution.content.arn
-          }
-        }
       }
     ]
   })
 }
-

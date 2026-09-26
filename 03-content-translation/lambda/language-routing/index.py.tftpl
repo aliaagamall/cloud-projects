@@ -1,0 +1,56 @@
+import json
+
+
+DEFAULT_LANGUAGE = "${default_language}"
+
+ORIGINS = json.loads(r'''${origins_json}''')
+
+ORIGIN_ACCESS_IDENTITY = "${origin_access_identity}"
+
+
+def get_language(request):
+    headers = request.get("headers", {})
+    accept_language = headers.get("accept-language", [])
+
+    if not accept_language:
+        return DEFAULT_LANGUAGE
+
+    value = accept_language[0].get("value", "").lower()
+
+    preferred_language = (
+        value.split(",")[0]
+        .strip()
+        .split("-")[0]
+    )
+
+    if preferred_language in ORIGINS:
+        return preferred_language
+
+    return DEFAULT_LANGUAGE
+
+
+def lambda_handler(event, context):
+    request = event["Records"][0]["cf"]["request"]
+
+    language = get_language(request)
+    origin = ORIGINS[language]
+
+    request["origin"] = {
+        "s3": {
+            "domainName": origin["domain_name"],
+            "region": origin["region"],
+            "authMethod": "origin-access-identity",
+            "originAccessIdentity": ORIGIN_ACCESS_IDENTITY,
+            "path": "",
+            "customHeaders": {},
+        }
+    }
+
+    request["headers"]["host"] = [
+        {
+            "key": "Host",
+            "value": origin["domain_name"],
+        }
+    ]
+
+    return request
